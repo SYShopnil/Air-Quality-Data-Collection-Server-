@@ -1,6 +1,9 @@
 import { NextFunction, Request, Response } from "express"
-import { AgencyRegistration } from "../dto/agency/registration"
+import { AgencyRegistration } from "../dto/agency/registration.dto"
 import { Agency } from "../entites/Agency"
+import {
+    unlink, unlinkSync
+} from "fs"
 import  {
     uploadAnyImage,
     uploadDefaultPicture
@@ -14,17 +17,31 @@ import {
 } from "express-validator"
 import { 
     LoginValidator
- } from "../dto/agency/loginValidator"
+ } from "../dto/agency/loginValidator.dto"
+
+ //utils modules
 import jwtGenerator from "../../utils/generateJWT"
 import cookieOption from "../../utils/cookiesOption"
 import otpGenerator from "../../utils/otpGenerator"
 import sendMailer from "../../utils/sendMail"
 import jwtVerifier from "../../utils/verifyToken"
+import fileDeleteHandler from "../../utils/deleteFileFromPublic"
+
+//dto input validation  module
 import {
     ForgoPasswordVerifyEmailValidator as VerifyEmailValidator,
     ForgoPasswordVerifyOtpValidator as OtpValidator,
     ForgoPasswordVerifyResetPasswordValidator as ResetPasswordValidator
-} from "../dto/agency/forgotPassword"
+} from "../dto/agency/forgotPassword.dto"
+import {
+    UpdateProfileValidator
+} from "../dto/agency/updateProfile.dto"
+import {
+    ProfilePictureUpdateValidator
+} from "../dto/agency/profilePictureUpdateValidator.dto"
+import {
+    UpdateCurrentPasswordValidator
+} from "../dto/agency/updateCurrentPassword.dto"
 
 //local type
 type Body = (req: Request, res: Response, next: NextFunction) => Promise<void> //body type
@@ -32,15 +49,8 @@ type UploadFileReturn = {
     fileUrl: string,
     fileAddStatus: boolean
 } //type declare for upload file return statement
-// try {
-        
-//     }catch(err) {
-//         console.log(err)
-//         res.json ({ 
-//             message: "Internal Error!!",
-//             status: 406
-//         })
-//     }
+
+
 //register a new agency 
 const registerNewAgencyHandler:Body =  async (req, res, next) => {
     try {
@@ -192,12 +202,27 @@ const loginController: Body = async (req, res, next) => {
             emailOrAgentId: string,
             password: string
         } = req.body 
-
         const findAgency:Agency| null = await Agency.createQueryBuilder("agency")
         .where ("agency.email = :e", { e: emailOrAgentId })
         .orWhere ("agency.agentID = :id", {id: emailOrAgentId})
+        .select (
+            [
+                "agency.coverPic",
+                "agency.titlePic",
+                "agency.name",
+                "agency.agentID",
+                "agency.email",
+                "agency.area",
+                "agency.district",
+                "agency.division",
+                "agency.country",
+                "agency.motive",
+                "agency.password"
+            ]
+        )
         .getOne() //query by email and select only the email of that agency 
-        
+        // console.log(`Hello world`)
+        // console.log(findAgency)
         if (findAgency) { //if find agency the it will happen
             const {password:databasePassword, agentID, email:agentEmail} = findAgency //get the database password 
             const isPasswordMatch:boolean = await bcrypt.compare (inputPassword, databasePassword)
@@ -210,9 +235,21 @@ const loginController: Body = async (req, res, next) => {
                 const cookiesDeadline:number = +process.env.COOKIE_EXPIRE_IN! || 5
                 const token:string = jwtGenerator (tokenData, tokenDeadLine)
                 const optionForCookie = cookieOption (cookiesDeadline)
+                const responseData:object = {
+                    name: findAgency.name,
+                    area: findAgency.area,
+                    district: findAgency.district,
+                    division: findAgency.division,
+                    country:findAgency.country,
+                    titlePic: findAgency.titlePic,
+                    coverPic: findAgency.coverPic,
+                    motive: findAgency.motive,
+                    email: findAgency.email,
+                    agentID: findAgency.agentID
+                }
                 res.cookie("auth",token,optionForCookie).json({
                     message: "Login Successfully!!",
-                    agency: findAgency,
+                    agency: responseData,
                     status: 202
                 })
             }else {
@@ -550,6 +587,243 @@ const checkIsLoggedInUser:Body = async (req, res) => {
         })
     }
 } 
+
+//logged in user can update profile 
+const updateProfileController:Body = async (req, res) => {
+    try {
+        //input validation part start
+        const verifyOtpValidation:UpdateProfileValidator | any = new UpdateProfileValidator(); //create a instance of dto class
+        for (let property in req.body) {
+            verifyOtpValidation[property] =  req.body[property]
+        } //insert  the the input data dynamically into the new create dto instance for validate
+        const hasErrorInValidation = await validate (verifyOtpValidation) //validate the data
+        if (hasErrorInValidation.length) { //if error has found
+            res.json ({
+                message:hasErrorInValidation,
+                status: 402
+            })
+        }else {
+            const updateAgencyData = await Agency.createQueryBuilder("agency")
+            .update()
+            .set(req.body)
+            .where(
+                `agency.agentID = :id`,
+                {
+                    id: req.user.agentID
+                }
+            )
+            .execute() //update the body data according to the body data 
+            if (updateAgencyData.affected) {
+                res.json ({
+                    message: "Agency has updated successfully",
+                    status: 202
+                })
+            }else {
+                res.json ({
+                    message: "Agency update failed",
+                    status: 406
+                })
+            }
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406
+        })
+    }
+}
+
+//update title or cover pic 
+const updateProfileOrCoverPicture:Body = async (req, res) => {
+    try {
+        //input validation part start
+        const verifyProfilePictureUpdateInput:ProfilePictureUpdateValidator | any = new ProfilePictureUpdateValidator(); //create a instance of dto class
+        for (let property in req.body) {
+            verifyProfilePictureUpdateInput[property] =  req.body[property]
+        } //insert  the the input data dynamically into the new create dto instance for validate
+        const hasErrorInValidation = await validate (verifyProfilePictureUpdateInput) //validate the data
+        if (hasErrorInValidation.length) { //if error has found
+            res.json ({
+                message:hasErrorInValidation,
+                status: 402
+            })
+        }else {
+            const {
+                uploadType,
+                base64: uploadImageBase64
+            }:ProfilePictureUpdateValidator = req.body
+            const {
+                fileAddStatus,
+                fileUrl
+            } = await uploadAnyImage(uploadImageBase64, req.user.name) //upload the image here
+            if (fileAddStatus) { //if image upload successfully
+                const findCurrentPictureData: Agency | null = await Agency.createQueryBuilder("agency")
+                .where (
+                    `agency.agentID = :id`,
+                    {
+                        id: req.user.agentID
+                    }
+                )
+                .andWhere (
+                    `agency.isDelete = :del`,
+                    {
+                        del: req.user.isDelete
+                    }
+                )
+                .select (
+                    [
+                        "agency.titlePic",
+                        "agency.coverPic"
+                    ]
+                )
+                .getOne();
+                let previousLink: string | null = null; //store the current url of the database's picture
+                const updateAgency = await Agency.createQueryBuilder("agency") //update the cover and profile picture dynamically
+                .update()
+                .where (
+                    `agency.agentID = :id`,
+                    {
+                        id: req.user.agentID
+                    }
+                )
+                .andWhere (
+                    `agency.isDelete = :del`,
+                    {
+                        del: req.user.isDelete
+                    }
+                )
+                if (uploadType.toLocaleLowerCase() == "cover" ){ //find the current cover pic url from database
+                    updateAgency
+                    .set(
+                        {
+                            coverPic: fileUrl
+                        }
+                    )
+                    .execute() //store the cover pic 
+                    previousLink = findCurrentPictureData!.coverPic ! //store the previous picture url 
+
+                } else if (uploadType.toLocaleLowerCase() == "title"){ //find the current title pic url from database
+                    updateAgency
+                    .set(
+                        {
+                            titlePic: fileUrl
+                        }
+                    )
+                    .execute() //store the title pic 
+                    previousLink = findCurrentPictureData!.titlePic ! //store the previous picture url 
+                }  
+             
+                if (updateAgency) { //if successfully updated then it will happen
+                    const currentFileName:string = previousLink?.split("/")[3] !
+                    //delete current picture from public folder
+                    
+                    // const isDelete = function (fileName:string): Promise<boolean> {
+                    //     return new Promise (resolve => {
+                    //         let hasError:boolean = false
+                    //         unlink (`${__dirname}/../../public/${fileName}`, (err) => {
+                    //             console.log(err?.message)
+                    //             hasError = true
+                    //         })
+                    //         // console.log({currentFileName})
+                    //         // unlinkSync(`${__dirname}/../../public/${currentFileName}`)
+                    //         resolve (hasError)
+                    //     })
+                    // }
+                    const isNotDelete = await fileDeleteHandler (currentFileName)
+                    // console.log(isNotDelete)
+                    if (!isNotDelete) { //if file delete from public folder
+                        res.json ({
+                            message: `${uploadType} has been updated successfully`,
+                            status: 202
+                        })
+                    }else {
+                        res.json ({
+                            message: "Data delete failed from public folder",
+                            status: 406
+                        })
+                    }
+                    res.end()
+                }else {
+                    res.json ({
+                        message: `${uploadType} update failed`,
+                        status: 406
+                    })
+                }
+            }else {
+                res.json ({
+                    message: "Image upload failed please try again",
+                    status: 406
+                })
+            }
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406
+        })
+    }
+}
+
+//update current password of a logged in user 
+const updateCurrentPasswordController:Body = async (req, res) => {
+    try {
+        //input validation part start
+        const verifyCurrentPasswordInput:UpdateCurrentPasswordValidator  = new UpdateCurrentPasswordValidator(); //create a instance of dto class
+        verifyCurrentPasswordInput.newPassword = req.body.newPassword
+        const hasErrorInValidation = await validate (verifyCurrentPasswordInput) //validate the data
+        if (hasErrorInValidation.length) { //if error has found
+            res.json ({
+                message:hasErrorInValidation,
+                status: 402
+            })
+        }else  if (req.body.newPassword !== req.body.confirmPassword) { //check the password and confirm password field
+            res.json ({
+                message: "Password and confirm password do not match",
+                status: 402
+            })
+        }else {
+            const {
+                newPassword
+            }:UpdateCurrentPasswordValidator = req.body
+            const encryptedCurrentPassword:string = await bcrypt.hash(newPassword, 10)
+            const isUpdatePassword = await Agency.createQueryBuilder("agency")
+            .update()
+            .set(
+                {
+                    password: encryptedCurrentPassword
+                }
+            )
+            .where (
+                `agency.agentID = :id`,
+                {
+                    id: req.user.agentID
+                }
+            )
+            .execute() //update the new password 
+            if (isUpdatePassword.affected) { //if password successfully updated
+                res.json ({
+                    message: "Password has successfully updated",
+                    status: 202
+                })
+            }else {
+                res.json ({
+                    message: "Password update failed",
+                    status: 406
+                })
+            }
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406
+        })
+    }
+}
+
+
 export {
     registerNewAgencyHandler,
     loginController,
@@ -557,5 +831,8 @@ export {
     forgotPasswordVerifyOTP,
     forgotPasswordResetPassword,
     logoutController,
-    checkIsLoggedInUser
+    checkIsLoggedInUser,
+    updateProfileController,
+    updateProfileOrCoverPicture,
+    updateCurrentPasswordController
 }

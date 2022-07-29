@@ -6,7 +6,8 @@ import {
     ManyToOne,
     JoinColumn,
     CreateDateColumn,
-    UpdateDateColumn
+    UpdateDateColumn,
+    PrimaryGeneratedColumn
 } from  "typeorm"
 import {
     IsAlpha,
@@ -24,7 +25,7 @@ import {
 
 @Entity ({name: "airData"})
 export class AirData extends BaseEntity {
-    @PrimaryColumn({
+    @PrimaryGeneratedColumn({
         type: "integer",
         name: "dataId"
     })
@@ -112,7 +113,8 @@ export class AirData extends BaseEntity {
     public latitude !: string //col - 10
     
     @Column({
-        name: "isDelete"
+        name: "isDelete",
+        default: false
     })
     @IsBoolean()
     public isDelete !: string  //col - 11

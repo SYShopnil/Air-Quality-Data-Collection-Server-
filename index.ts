@@ -11,6 +11,7 @@ import cors from "cors"
 import cookieParser from "cookie-parser"
 import sendMail from "./utils/sendMail"
 import agencyRoute from  "./src/route/agency"
+import airDataRoute from  "./src/route/airData"
 
 const app:Application = express();
 
@@ -43,6 +44,7 @@ app.get ("/", (req:Request, res:Response):void => {
 
 //all others api will be located here
 app.use("/agency", agencyRoute)
+app.use("/airData", airDataRoute)
 
 //not found route 
 app.get ("*", (req:Request, res:Response):void => {
@@ -51,4 +53,3 @@ app.get ("*", (req:Request, res:Response):void => {
         status: 404
     })
 })
-const { body } = require('express-validator');

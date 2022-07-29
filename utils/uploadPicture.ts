@@ -1,5 +1,5 @@
 const fs = require('fs');
-const serverUrl:string = process.env.DATA_URL || `http://localhost:3030` //it will come from dot env file
+const serverUrl:string = process.env.SERVER_BASE_URL || `http://localhost:3030` //it will come from dot env file
 
 //Interfaces 
 import  {
@@ -8,10 +8,10 @@ import  {
 } from "../interfaces/photoUpload"
 
 //it will upload any base 64 file  in the server 
-const uploadAnyImage: (base64:string, agencyName:string, uploadType?:string) => Promise <FileUploadDefaultReturn> = async (base64, agencyName, uploadType) => {
+const uploadAnyImage: (base64:string, agencyName:string, uploadType?:string, extension?:string) => Promise <FileUploadDefaultReturn> = async (base64, agencyName, uploadType, extension) => {
     const myBase64Data:string = base64
     const userId = agencyName
-    const dataExtension = uploadType !== "default" ? base64.split(';')[0].split('/')[1]  : "png" //get the extension of my data 
+    const dataExtension = extension || (uploadType !== "default" ? base64.split(';')[0].split('/')[1]  : "png" )//get the extension of my data 
     const fileName:string = `${userId}${+new Date()}.${dataExtension}`
     const saveDirectory:string = `${__dirname}/../public/${fileName}`
     const upload:Promise<FileUploadDefault> = new Promise (resolve => {

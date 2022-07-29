@@ -9,7 +9,10 @@ import {
     forgotPasswordVerifyOTP,
     forgotPasswordResetPassword,
     logoutController,
-    checkIsLoggedInUser
+    checkIsLoggedInUser,
+    updateProfileController,
+    updateProfileOrCoverPicture,
+    updateCurrentPasswordController
 } from "../controller/agency"
 import auth from "../../middleware/auth"
 
@@ -20,11 +23,17 @@ route.post ("/registration",registerNewAgencyHandler)
 route.post ("/login",loginController)
 route.post ("/forgotPassword/verifyEmail",forgotPasswordVerifyEmail)
 route.post ("/forgotPassword/verifyOtp",forgotPasswordVerifyOTP)
-route.post ("/forgotPassword/resetPassword",forgotPasswordResetPassword)
+route.post ("/forgotPassword/resetPassword", forgotPasswordResetPassword)
+
+//put route
+route.put ("/profile/update", auth, updateProfileController)
+route.put ("/profile/picture/update", auth, updateProfileOrCoverPicture)
+route.put ("/password/update", auth, updateCurrentPasswordController)
 
 //get route 
 route.get ("/logout", auth, logoutController)
 route.get ("/check/loggedIn/session", checkIsLoggedInUser)
 
 export default route
+
 
