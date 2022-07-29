@@ -716,20 +716,6 @@ const updateProfileOrCoverPicture:Body = async (req, res) => {
              
                 if (updateAgency) { //if successfully updated then it will happen
                     const currentFileName:string = previousLink?.split("/")[3] !
-                    //delete current picture from public folder
-                    
-                    // const isDelete = function (fileName:string): Promise<boolean> {
-                    //     return new Promise (resolve => {
-                    //         let hasError:boolean = false
-                    //         unlink (`${__dirname}/../../public/${fileName}`, (err) => {
-                    //             console.log(err?.message)
-                    //             hasError = true
-                    //         })
-                    //         // console.log({currentFileName})
-                    //         // unlinkSync(`${__dirname}/../../public/${currentFileName}`)
-                    //         resolve (hasError)
-                    //     })
-                    // }
                     const isNotDelete = await fileDeleteHandler (currentFileName)
                     // console.log(isNotDelete)
                     if (!isNotDelete) { //if file delete from public folder

@@ -173,7 +173,7 @@ export class Agency extends BaseEntity {
     @Min(4)
     public otp !: string  //col - 12
 
-    @OneToMany(() => AirData, (airData) => airData.publishedBy)
+    @OneToMany((type) => AirData, (airData) => airData.publishedBy)
     public uploadData !: AirData[] 
 
     @Column({

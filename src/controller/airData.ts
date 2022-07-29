@@ -28,6 +28,7 @@ import {
     AddAirtDataValidator
 } from "../dto/airData/addAirDataValidator.dto"
 import readCsvDataHandler from "../../utils/readCsvData"
+import { Brackets, SelectQueryBuilder } from "typeorm"
 
 //local type
 type Body = (req: Request, res: Response, next: NextFunction) => Promise<void> //body type
@@ -89,9 +90,17 @@ const addNewAirDataController:Body =  async (req, res, next) => {
             }else if (newAirDataBodyInput.uploadFormat.toLocaleLowerCase() == "manual") {
                myData = req.body.airData
             }
+            const findAgency = await Agency.createQueryBuilder("agency")
+            .where (
+                `agency.agentID = :id`,
+                {
+                    id: req.user.agentID
+                }
+            )
+            .getOne()
             //add publisher name now 
             myData.forEach ((rawData:string, index:number) => {
-                myData[index]["publishedBy"] = req.user.agentID
+                myData[index]["publishedBy"] = findAgency
             })
             
             //now data saving process will be start 
@@ -99,6 +108,7 @@ const addNewAirDataController:Body =  async (req, res, next) => {
             .insert()
             .values (myData)
             .execute()
+            // const saveAirData = 
             if (saveAirData.raw.affectedRows) { //if air data successfully saved
                 res.json ({
                     message: "New Air Data collected!!",
@@ -121,6 +131,239 @@ const addNewAirDataController:Body =  async (req, res, next) => {
     }
 }
 
+//get all logged in agency input air data 
+const getLoggedInAgencyInputAirData:Body =  async (req, res, next) => {
+    try {
+        type bodyInput = {
+            sortBy?: string,
+            searchBy?: string,
+            pageNo?: string,
+            dataLimit: number,
+        }
+        
+        const {
+            sortBy,
+            searchBy,
+            pageNo,
+            dataLimit
+        }:bodyInput = req.body; 
+        const limit:number = dataLimit || 5 //set the data limit
+        const currentPageNo:string | number = pageNo || 1
+        const query = await AirData.createQueryBuilder ("airData")
+         .select (
+            [
+                "airData.dataId",
+                "airData.area",
+                "airData.district",
+                "airData.division",
+                "airData.country",
+                "airData.valueOfPM",
+                "airData.publishedDate"
+            ]
+         )
+         .leftJoin ("airData.publishedBy", "published")//make the query interface
+
+        // sorting filter
+        if (sortBy) {
+            if (sortBy == "latest") {
+                query.orderBy ("airData.createAt", "DESC")
+            }else if (sortBy.toLowerCase() == "a-z") {
+                query.orderBy ("airData.division", "ASC")
+            }else if (sortBy.toLowerCase() == "z-a") {
+                query.orderBy ("airData.division", "DESC")
+            }
+        }else {
+            query.orderBy ("airData.createAt", "DESC") //by default option 
+        }
+        
+        //searching option 
+        if (searchBy) {
+            query.andWhere (
+                new Brackets ((qb) => {
+                    qb.where ( //search by data id
+                        `airData.dataId like :id`,
+                        {
+                            id: `%${searchBy}%`
+                        }
+                    ).orWhere (  //search by area
+                        `airData.area like :area`,
+                        {
+                            area: `%${searchBy}%`
+                        }
+                    ).orWhere ( //search by district
+                        `airData.district like :district`,
+                        {
+                            district: `%${searchBy}%`
+                        }
+                    ).orWhere ( //search by division
+                        `airData.division like :division`,
+                        {
+                            division: `%${searchBy}%`
+                        }
+                    ).orWhere ( //search by pm 2.5 value
+                        `airData.valueOfPM like :valueOfPM`,
+                        {
+                            valueOfPM: `%${searchBy}%`
+                        }
+                    )
+                })
+            )
+        }
+
+        query.andWhere (
+            `published.agentID = :id`, 
+            {
+                id: req.user.agentID
+            }
+         ) //only got the logged in user data //common query
+        query.andWhere (
+            `airData.isDelete = :del`, 
+            {
+                del : false
+            }
+        ) //get only those whose are not deleted
+         //pagination part start
+        const totalDataFound:number = await query.getCount(); //get the total found data 
+        const pageNeed = (Math.floor(totalDataFound / limit)) + 1 //total page need for this query 
+        const skipData = (+currentPageNo * limit) - limit //this amount of data will be skip 
+        query.limit(limit).offset(skipData) //for pagination 
+        
+        //finally get all data with all query
+        const getAllData = await query.getMany(); //finally get all data
+        
+        if (getAllData.length) { //if query data has found 
+            res.json ({
+                message: `${getAllData.length} data has found`,
+                pageNeed,
+                status: 202,
+                airData: getAllData
+            })
+        }else {
+            res.json ({
+                message: `No data has found!!!`,
+                pageNeed: null,
+                status: 404,
+                airData: null
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            pageNeed: null,
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//update air data by using agent id 
+const updateAirDataById:Body =  async (req, res, next) => {
+    try {
+        const reqAirDataId:string = req.params.id  
+        const updateAirData = await AirData.createQueryBuilder("airData")
+        .leftJoin (
+            `airData.publishedBy`,
+            "publishedBy"
+        )
+        .where (
+            `airData.dataId = :airDataId`,
+            {
+                airDataId: reqAirDataId
+            }
+        )
+        .andWhere(
+            `publishedBy.agentID = :agentID`,
+            {
+                agentID: req.user.agentID
+            }
+        )
+        .update()
+        .set (req.body)
+        .execute()
+        // console.log(updateAirData)
+        if (updateAirData.affected) { //if successfully updated
+            res.json ({
+                message: "Update successfully!!!",
+                status: 202
+            })
+        }else {
+            res.json ({
+                message: "Update Failed!!!",
+                status: 406
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            pageNeed: null,
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//delete air data by using agent id 
+const deleteAirDataById:Body =  async (req, res, next) => {
+    try {
+        const reqAirDataId:string = req.params.id 
+        const updateAirData = await AirData.createQueryBuilder("airData")
+        .leftJoin (
+            `airData.publishedBy`,
+            "publishedBy"
+        )
+        .update()
+        .set(
+            {
+                isDelete: true
+            }
+        )
+        .where (
+            `airData.dataId = :airDataId`,
+            {
+                airDataId: reqAirDataId
+            }
+        )
+        .andWhere(
+            `publishedBy.agentID = :agentID`,
+            {
+                agentID: req.user.agentID
+            }
+        )
+        .andWhere (
+            `airData.isDelete = :del`, 
+            {
+                del :false
+            }
+        )
+        .execute()
+        // console.log(updateAirData)
+        if (updateAirData.affected) { //if successfully updated
+            res.json ({
+                message: "Delete successfully!!!",
+                status: 202
+            })
+        }else {
+            res.json ({
+                message: "Delete Failed!!!",
+                status: 406
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            pageNeed: null,
+            status: 406,
+            airData: null
+        })
+    }
+}
+
 export  {
-    addNewAirDataController
+    addNewAirDataController,
+    getLoggedInAgencyInputAirData,
+    updateAirDataById,
+    deleteAirDataById
 }

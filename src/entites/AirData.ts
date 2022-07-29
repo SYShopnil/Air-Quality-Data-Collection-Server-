@@ -99,6 +99,7 @@ export class AirData extends BaseEntity {
 
     @Column({
         name: "publishedDate",
+        type: "datetime"
     })
     public publishedDate !: string //col - 8
 
@@ -114,10 +115,11 @@ export class AirData extends BaseEntity {
     
     @Column({
         name: "isDelete",
-        default: false
+        default: false,
+        type: "boolean"
     })
     @IsBoolean()
-    public isDelete !: string  //col - 11
+    public isDelete !: boolean  //col - 11
 
     @CreateDateColumn({
         name: "createAt"
