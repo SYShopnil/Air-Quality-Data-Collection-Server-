@@ -1,40 +1,13 @@
-import {IsArray, IsDefined, IsEmail, IsNumber, IsOptional, isString, IsString, IS_ENUM, Matches, Validate, ValidateIf } from "class-validator"
+import {IsAlpha, IsArray, IsDefined, IsEmail, IsNotEmpty, IsNumber, IsOptional, isString, IsString, IS_ENUM, Matches, Validate, ValidateIf } from "class-validator"
 
 class AirtDataRawValidator {
-    
-    @IsDefined({
-        message: "Area Required!!"
-    })
-    @IsString({
-        message: "Area need to be string!!"
-    })
-    public area !: string 
-
-    @IsDefined({
-        message: "District Required!!"
-    })
-    @IsString({
-        message: "District need to be string!!"
-    })
-    public district !: string 
-
-
     @IsDefined({
         message: "Division Required!!"
     })
     @IsString({
         message: "Division need to be string!!"
     })
-    public division !: string 
-
-
-    @IsDefined({
-        message: "Country Required!!"
-    })
-    @IsString({
-        message: "Country need to be string!!"
-    })
-    public country !: string 
+    public division !: string  //data 1
 
     @IsDefined({
         message: "Value of PM2.5 Required!!"
@@ -42,7 +15,7 @@ class AirtDataRawValidator {
     @IsString({
         message: "Value of PM2.5 need to be string!!"
     })
-    public valueOfPM !: string 
+    public valueOfPM !: string   //data 2
 
     @IsDefined({
         message: "Published Date  Required!!"
@@ -50,7 +23,58 @@ class AirtDataRawValidator {
     @IsString({
         message: "Published Date need to be string!!"
     })
-    public publishedDate !: string 
+    public publishedDate !: string   //data 3
+
+    @IsDefined({
+        message: "Average temperature  Required!!"
+    })
+    @IsNumber()
+    public avgTemp !: number   //data 4
+
+    @IsDefined({
+        message: "Rain Precipitation temperature  Required!!"
+    })
+    @IsNumber()
+    public rainPrecipitation !: number   //data 5
+    
+    @IsDefined({
+        message: "Visibility Required!!"
+    })
+    @IsNumber()
+    public visibility !: number   //data 6
+
+
+    @IsDefined({
+        message: "Cloud cover Required!!"
+    })
+    @IsNumber()
+    public cloudCover !: number   //data 7
+
+    @IsDefined({
+        message: "Relative humidity required!!"
+    })
+    @IsNumber()
+    public relHumidity !: number   //data 8
+
+    @IsString({
+        message: "Season must be string!!!"
+    })
+    @IsDefined({
+        message: "Season name required!!!"
+    })
+    public season!: string //data 9
+
+    @IsNotEmpty({
+        message: "Station No  missing!!!"
+    })
+    @IsAlpha()
+    public stationNo !: number //data 10
+
+    @IsNotEmpty({
+        message: "Wind Speed value is missing!!!"
+    })
+    @IsAlpha()
+    public windSpeed !: number //data 11
 }
 
 export class AddAirtDataValidator {

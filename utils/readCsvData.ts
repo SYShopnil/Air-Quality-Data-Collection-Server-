@@ -9,6 +9,7 @@ const readCsvDataHandler = async (fileName:string):Promise<any> => {
             .pipe(parse({ delimiter: ",", from_line: 1 }))
             .on("data", function (row) {
                 finalData.push (row)
+                // console.log(row)
                 resolve(finalData)
             })
             
@@ -32,18 +33,39 @@ const readCsvDataHandler = async (fileName:string):Promise<any> => {
         childRowWrap.forEach ((childWrapData:any[]) => {
             const constructorObject:any = {};
             mainRow.forEach ((mainRow:string, mainRowIndex:number) => {
-                if (!mainRowIndex || !mainRow) {
+                
+                if (false) {
+                    console.log(mainRow)
                     return
                 }else {
                     childWrapData.forEach ((subRow, subRowIndex) => {
-                        if (subRowIndex && subRowIndex == mainRowIndex ) {
-                            constructorObject[mainRow] = subRow
+                        
+                        if (subRowIndex == mainRowIndex ) {
+                            if (mainRow == "publishedDate") {
+                                // console.log({mainRow, subRow, mainRowIndex, subRowIndex})
+                                let input = subRow
+                                let output = input.split("")
+                                output.forEach((data:string, ind:number) => {
+                                    if (data == "/") {
+                                        output[ind] = "-"
+                                    }
+                                    return data
+                                }) 
+                                let res = ""
+                                output.map ((val:string) => {
+                                    res+=val
+                                })
+                                constructorObject[mainRow] = res
+                            }else {
+                                constructorObject[mainRow] = subRow
+                            }
                         }else {
                             return 
                         }
                     })
                 } 
             })
+            // console.log(constructorObject)
             mainData.push (constructorObject)
         })
 
@@ -58,3 +80,4 @@ const readCsvDataHandler = async (fileName:string):Promise<any> => {
 }
 
 export default readCsvDataHandler
+

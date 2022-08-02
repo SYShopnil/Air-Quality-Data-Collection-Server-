@@ -24,6 +24,8 @@ import {
 } from "class-validator"
 
 import {AirData} from "./AirData"
+import {DailyAirData} from "./DailyAirData"
+
 
 @Entity ({name: "agency"})
 export class Agency extends BaseEntity {
@@ -175,6 +177,9 @@ export class Agency extends BaseEntity {
 
     @OneToMany((type) => AirData, (airData) => airData.publishedBy)
     public uploadData !: AirData[] 
+
+    @OneToMany((type) => DailyAirData, (dailyAirData) => dailyAirData.publishedBy)
+    public dailyData !: DailyAirData[] 
 
     @Column({
         type: "boolean",

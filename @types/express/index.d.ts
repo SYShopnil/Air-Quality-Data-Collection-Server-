@@ -1,4 +1,4 @@
-import {Agency} from "../../src/entites/Agency"
+import {Agency} from "../../src/Agency"
 
 declare global {
     namespace Express {
