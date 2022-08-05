@@ -24,7 +24,7 @@ const sendMailer = async(from:string, to:string, text:string, subject:string, se
             auth: {
                 user: hostEmail,
                 pass: hostPassword,
-            },
+            }
         });
         const mailOptions = {
             from: sentFrom ,

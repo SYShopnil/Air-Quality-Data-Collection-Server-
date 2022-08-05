@@ -65,7 +65,7 @@ const registerNewAgencyHandler:Body =  async (req, res, next) => {
         if (isValidationError.length) { //if validation failed
             res.json ({
                 message: isValidationError,
-                status: 406
+                status: 402
             })
         }else {
             //password and confirm password validation
@@ -180,6 +180,7 @@ const registerNewAgencyHandler:Body =  async (req, res, next) => {
 //create login api 
 const loginController: Body = async (req, res, next) => {
     try {
+        // console.log(`It is heades`)
         //input data validation start
         const loginData:LoginValidator | any = new LoginValidator ()  //create a instance for validate the login input data
         for (const property in req.body) {
@@ -192,10 +193,8 @@ const loginController: Body = async (req, res, next) => {
                 status: 402,
                 agency: null
             })
-        }
-        //input data validation end 
-
-        const {
+        }else {
+            const {
             emailOrAgentId,
             password:inputPassword
         }: {
@@ -266,6 +265,10 @@ const loginController: Body = async (req, res, next) => {
                 agency: null
             })
         }
+    }
+        //input data validation end 
+
+        
     }catch (err) {
         console.log(err)
         res.json ({
@@ -279,6 +282,7 @@ const loginController: Body = async (req, res, next) => {
 //forgot password part one (get the email and sent a 4 digits OTP and generate a new token and set into cookies)
 const forgotPasswordVerifyEmail:Body = async (req, res) => {
     try {
+        // console.log(`Hello`)
         //input validation part start
         const verifyEmailValidation:VerifyEmailValidator = new VerifyEmailValidator();
         verifyEmailValidation.email = req.body.email
@@ -557,33 +561,40 @@ const logoutController:Body = async (req, res) => {
 //check is logged in or not controller 
 const checkIsLoggedInUser:Body = async (req, res) => {
     try {
-        const {
-            auth:token
-        } = req.cookies //get the token from cookies
-        if (token) { //if token have found from cookie name auth then it will execute
-            const user:any= jwtVerifier (token); // get the logged in user data
-            if (user) { //if data have found from jwt token then it will execute
-                res.json ({
-                    message: "User logged in!!",
-                    status: 202
-                })
-            }else {
-                res.json ({
-                    message: "User not logged in please login",
-                    status: 404
-                })
-            }
+        // const {
+        //     auth:token
+        // } = req.cookies //get the token from cookies
+        if (Object.keys(req.user).length) { //if token have found from cookie name auth then it will execute
+            // const user:any= jwtVerifier (token); // get the logged in user data
+            // if (user) { //if data have found from jwt token then it will execute
+            //     res.json ({
+            //         message: "User logged in!!",
+            //         status: 202,
+            //     })
+            // }else {
+            //     res.json ({
+            //         message: "User not logged in please login",
+            //         status: 404
+            //     })
+            // }
+            res.json ({
+                message: "User logged in!!",
+                status: 202,
+                user: req.user
+            })
         }else {
             res.json ({
                 message: "User not logged in please login",
-                status: 404
+                status: 404,
+                user: null
             })
         }
     }catch(err) {
         console.log(err)
         res.json ({ 
             message: "Internal Error!!",
-            status: 406
+            status: 406,
+            user: null
         })
     }
 } 

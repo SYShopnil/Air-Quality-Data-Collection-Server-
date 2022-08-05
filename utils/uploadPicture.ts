@@ -9,7 +9,7 @@ import  {
 
 //it will upload any base 64 file  in the server 
 const uploadAnyImage: (base64:string, agencyName:string, uploadType?:string, extension?:string) => Promise <FileUploadDefaultReturn> = async (base64, agencyName, uploadType, extension) => {
-    const myBase64Data:string = base64
+    const myBase64Data:string = base64.split(';base64,')[1] //get the base 64 data of my data
     const userId = agencyName
     const dataExtension = extension || (uploadType !== "default" ? base64.split(';')[0].split('/')[1]  : "png" )//get the extension of my data 
     const fileName:string = `${userId}${+new Date()}.${dataExtension}`
