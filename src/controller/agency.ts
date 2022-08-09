@@ -711,7 +711,7 @@ const updateProfileOrCoverPicture:Body = async (req, res) => {
                             coverPic: fileUrl
                         }
                     )
-                    .execute() //store the cover pic 
+                    
                     previousLink = findCurrentPictureData!.coverPic ! //store the previous picture url 
 
                 } else if (uploadType.toLocaleLowerCase() == "title"){ //find the current title pic url from database
@@ -721,13 +721,23 @@ const updateProfileOrCoverPicture:Body = async (req, res) => {
                             titlePic: fileUrl
                         }
                     )
-                    .execute() //store the title pic 
+                    
                     previousLink = findCurrentPictureData!.titlePic ! //store the previous picture url 
                 }  
-             
+                await updateAgency.execute() //it will execute all element after did all operation
                 if (updateAgency) { //if successfully updated then it will happen
                     const currentFileName:string = previousLink?.split("/")[3] !
                     const isNotDelete = await fileDeleteHandler (currentFileName)
+                    // console.log({updateAgency})
+                    // const findCurrentUser = await Agency.createQueryBuilder ("agency")
+                    // .where (
+                    //     `agency.agentID = :id`, 
+                    //     {
+                    //         id: req.user.agentID
+                    //     }
+                    // )
+                    // .getOne()
+                    // console.log({findCurrentUser})
                     // console.log(isNotDelete)
                     if (!isNotDelete) { //if file delete from public folder
                         res.json ({
@@ -819,6 +829,8 @@ const updateCurrentPasswordController:Body = async (req, res) => {
         })
     }
 }
+
+//show own profile 
 
 
 export {

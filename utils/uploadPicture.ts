@@ -33,6 +33,7 @@ const uploadAnyImage: (base64:string, agencyName:string, uploadType?:string, ext
         }) //save the data into public folder
     })
     const {fileAddStatus, fileUrl} = await upload
+    // console.log({fileAddStatus})
     return {
         fileUrl,
         fileAddStatus

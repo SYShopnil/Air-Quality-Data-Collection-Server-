@@ -41,6 +41,7 @@ createConnection().then(() => console.log (`server is connected to the database`
 
 //default route
 app.get ("/", (req:Request, res:Response):void => {
+    // console.log(`Hello!!!`)
     res.json ({
         message: "Hello I am from root",
         status: 202

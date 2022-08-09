@@ -22,6 +22,7 @@ const authenticationMiddleware = async (req:Request, res:Response, next:NextFunc
                 const findAgent:Agency | null = await Agency.createQueryBuilder ("agency")
                 .where(`agency.agentID = :id`, {id:agentID})
                 .getOne()
+                // console.log (findAgent)
                 if (findAgent) { //if it is a valid agent then it will execute
                     req.user = findAgent;
                     req.isAuth = true
