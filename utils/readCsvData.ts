@@ -55,7 +55,9 @@ const readCsvDataHandler = async (fileName:string):Promise<any> => {
                                 output.map ((val:string) => {
                                     res+=val
                                 })
-                                constructorObject[mainRow] = res
+                                const [day, month, year] = res.split ("-")
+                                const final =`${year}-${(month.length > 1) ? month : "0" + month}-${(day.length > 1 ) ? day : "0"+day }`
+                                constructorObject[mainRow] = final
                             }else {
                                 constructorObject[mainRow] = subRow
                             }

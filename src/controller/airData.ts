@@ -52,12 +52,14 @@ const addNewAirDataController:Body =  async (req, res, next) => {
             checkRegistrationData[property] = req.body[property]
         } //store all body data dynamically into the validation instance
         const isValidationError = await validate(checkRegistrationData) //validate the input data here
+        // console.log(req.body)
         if (isValidationError.length) { //if validation failed
             res.json ({
                 message: isValidationError,
                 status: 406
             })
         }else  {
+            // console.log (`Hello I am from air data creation`)
             let myData:any[] = [];
             if (newAirDataBodyInput.uploadFormat.toLocaleLowerCase() == "csv"){
                 const {
@@ -107,13 +109,14 @@ const addNewAirDataController:Body =  async (req, res, next) => {
             myData.forEach ((rawData:string, index:number) => {
                 myData[index]["publishedBy"] = findAgency
             })
-            
-            //now data saving process will be start 
+            console.log(myData[0].publishedDate)
             const saveAirData = await AirData.createQueryBuilder("airData")
             .insert()
+            .into (AirData)
             .values (myData)
             .execute()
-            // const saveAirData = 
+            // console.log(myData)
+            // // const saveAirData = 
             if (saveAirData.raw.affectedRows) { //if air data successfully saved
                 res.json ({
                     message: "New Air Data collected!!",
@@ -125,7 +128,7 @@ const addNewAirDataController:Body =  async (req, res, next) => {
                     status: 406
                 })
             }
-            // res.end()
+            // // res.end()
         } 
     }catch(err) {
         console.log(err)
