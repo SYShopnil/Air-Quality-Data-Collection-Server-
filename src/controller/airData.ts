@@ -392,6 +392,7 @@ const addNewAirDailyDataController:Body =  async (req, res, next) => {
                 if (fileAddStatus){ //if csv file successfully save 
                     const uploadFileName:string =  fileUrl.split("/")[3] //upload that file 
                     const csvRawData = await readCsvDataHandler (uploadFileName) //get the data from the just upload csv file 
+                    console.log(csvRawData)
                     if (csvRawData.length) { //if csv raw data have been found 
                         myData = csvRawData
                         //delete the uploaded file 

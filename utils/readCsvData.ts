@@ -8,6 +8,7 @@ const readCsvDataHandler = async (fileName:string):Promise<any> => {
             fs.createReadStream(`${__dirname}/../public/${fileName}`)
             .pipe(parse({ delimiter: ",", from_line: 1 }))
             .on("data", function (row) {
+                // console.log(row)
                 finalData.push (row)
                 // console.log(row)
                 resolve(finalData)
