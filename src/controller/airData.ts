@@ -22,7 +22,7 @@ import otpGenerator from "../../utils/otpGenerator"
 import sendMailer from "../../utils/sendMail"
 import jwtVerifier from "../../utils/verifyToken"
 import fileDeleteHandler from "../../utils/deleteFileFromPublic"
-
+import findAirQuality from "../../utils/detectTheAirQuality"
 
 //dto input validation  module
 import {
@@ -682,6 +682,123 @@ const deleteDailyAirDataById:Body =  async (req, res, next) => {
     }
 }
 
+//get daily air data index by division
+const getDailyAirDataAqiByDivision:Body =  async (req, res, next) => {
+    try {
+        const division = req.params.division //get the division name from params 
+        if (division) { //if division have found 
+            const getData:any = await AirData.createQueryBuilder ("airData")
+            .select("AVG(airdata.valueOfPM)", "average" )
+            .addSelect ("airdata.division", "division")
+            .where ("airdata.division = :divisionName", {
+                divisionName:  division
+            })
+            .groupBy ("airData.division")
+            .getRawOne()
+            // console.log(getData)
+            if (getData) { // if data has found then 
+                const getQuality = findAirQuality (getData.average)
+                const finalAirData = JSON.parse (JSON.stringify ({...getData, ...getQuality}))
+                res.json ({
+                    message: `Air data has found!!`,
+                    status: 202 ,
+                    airData: finalAirData
+                })
+            }else {
+                res.json ({
+                    message: `No data found`,
+                    status: 404 ,
+                    airData: null
+                })
+            }
+            // res.end ()
+        }else {
+            res.json ({
+                message: "Division Name required",
+                status: 404,
+                airData: null
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            pageNeed: null,
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//get available division 
+const getAvailableDivision:Body =  async (req, res, next) => {
+    try {
+       const findAvailableDivision: AirData [] | null = await AirData.createQueryBuilder ("airData")
+       .select ("DISTINCT(airdata.division)", "division")
+       .getRawMany();
+
+        if (findAvailableDivision.length) { //if division has been found
+            res.json ({
+                message: `${findAvailableDivision.length} Division has been found`,
+                status: 202,
+                divisions: findAvailableDivision
+            })
+        }else {
+            res.json ({
+                message: "Division not found!!!",
+                status: 404,
+                divisions: null
+            })
+        }
+    //    res.end ();
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            pageNeed: null,
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//Get all agency’s Average PM2.5 in a daily basis of a particular Season. =
+const getAveragePmInDailyBasisOfParticularSession:Body =  async (req, res, next) => {
+    try {
+       const findAvailableAirData = await AirData.createQueryBuilder ("airData")
+       .select (`AVG(airData.valueOfPM)`, "avg")
+       .addSelect (`YEAR(airData.publishedDate)` ,"year")
+       .addSelect (`MONTH(airdata.publishedDate)`, "month")
+       .where (`airdata.season = :session`, {
+        session: req.body.session
+       })
+       .groupBy (`YEAR(airdata.publishedDate)`)
+       .addGroupBy (`MONTH(airdata.publishedDate)`)
+       .getRawMany(); //get query data
+       if (findAvailableAirData.length) { //if data found
+        res.json ({
+            message: "Data found!!",
+            status: 202,
+            airData: findAvailableAirData
+        })
+       }else {
+        res.json ({
+            message: "Data not found",
+            status: 404,
+            airData: null
+        })
+       }
+    //    res.end ();
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            pageNeed: null,
+            status: 406,
+            airData: null
+        })
+    }
+}
 export  {
     addNewAirDataController,
     getLoggedInAgencyInputAirData,
@@ -690,5 +807,10 @@ export  {
     addNewAirDailyDataController,
     getLoggedInAgencyInputDailyAirData,
     updateDailyAirDataById,
-    deleteDailyAirDataById
+    deleteDailyAirDataById,
+    getDailyAirDataAqiByDivision,
+    getAvailableDivision,
+    getAveragePmInDailyBasisOfParticularSession
 }
+
+
