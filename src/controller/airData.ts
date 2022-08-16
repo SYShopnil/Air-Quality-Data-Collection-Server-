@@ -741,7 +741,7 @@ const getAvailableDivision:Body =  async (req, res, next) => {
             res.json ({
                 message: `${findAvailableDivision.length} Division has been found`,
                 status: 202,
-                divisions: findAvailableDivision
+                session: findAvailableDivision
             })
         }else {
             res.json ({
@@ -766,20 +766,55 @@ const getAvailableDivision:Body =  async (req, res, next) => {
 const getAveragePmInDailyBasisOfParticularSession:Body =  async (req, res, next) => {
     try {
        const findAvailableAirData = await AirData.createQueryBuilder ("airData")
+       .leftJoinAndSelect ("airData.publishedBy", "publisher")
        .select (`AVG(airData.valueOfPM)`, "avg")
-       .addSelect (`YEAR(airData.publishedDate)` ,"year")
-       .addSelect (`MONTH(airdata.publishedDate)`, "month")
+       .addSelect (` CONCAT(YEAR(airdata.publishedDate), " - ",
+    MONTH(airdata.publishedDate) )`, "time")
+    .addSelect ("publisher.agentID", "publishedBy")
+    .addSelect ("publisher.name", "agencyName")
        .where (`airdata.season = :session`, {
         session: req.body.session
        })
        .groupBy (`YEAR(airdata.publishedDate)`)
        .addGroupBy (`MONTH(airdata.publishedDate)`)
+    //    .addGroupBy (`airdata.publishedBy`)
        .getRawMany(); //get query data
        if (findAvailableAirData.length) { //if data found
+        const findAllPublisher: any = await AirData.createQueryBuilder ("airdata")
+        .select (`DISTINCT(airdata.publishedBy)`, `owner`)
+        .getRawMany(); //get all available owner id 
+        // console.log(findAvailableAirData)
+        // res.end()
+        const finalStructure:object | [] | any= [];
+        findAllPublisher.map ((ownerId:any) => {
+            const createSendStructure = findAvailableAirData.filter (airData => airData.publishedBy == ownerId.owner )
+            finalStructure.push (createSendStructure)
+        })
+        // console.log(first)
+        // console.log(finalStructure)
+        const final:any = [];
+        finalStructure.map ((subArray:any) => {
+            const childStruct:any = {
+                x: [],
+                y: [],
+                mode: 'lines+markers',
+                type: 'scatter'
+            }
+            subArray.map ((child:any | object) => {
+                for (let property in child) {
+                    if (property == "avg") {
+                        childStruct.y.push (child[property])
+                    }else if (property == "time") {
+                        childStruct.x.push (child[property])
+                    }
+                }
+            })
+            final.push (childStruct)
+        })
         res.json ({
             message: "Data found!!",
             status: 202,
-            airData: findAvailableAirData
+            airData: finalStructure
         })
        }else {
         res.json ({
@@ -799,6 +834,214 @@ const getAveragePmInDailyBasisOfParticularSession:Body =  async (req, res, next)
         })
     }
 }
+
+//find all available session 
+const getAvailableSession:Body =  async (req, res, next) => {
+    try {
+       const findSession: AirData [] | null = await AirData.createQueryBuilder ("airData")
+       .select ("DISTINCT(airdata.season)", "sessions")
+       .where (`airData.isDelete = false`)
+       .getRawMany();
+
+        if (findSession.length) { //if division has been found
+            res.json ({
+                message: `${findSession.length} session has been found`,
+                status: 202,
+                sessions: findSession
+            })
+        }else {
+            res.json ({
+                message: "Session not found!!!",
+                status: 404,
+                sessions: null
+            })
+        }
+    //    res.end ();
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            sessions: null
+        })
+    }
+}
+
+//get avg mean between a year range between two agency
+const getAvgMeanDailyBasisBetweenTwoAgencyByYear:Body =  async (req, res, next) => {
+    try {
+       const {
+        starYear,
+        endYear,
+        agencyOne,
+        agencyTwo
+       } = req.body 
+       if (starYear < endYear) { 
+        if (starYear && endYear) {
+            const findAirData = await DailyAirData.createQueryBuilder ("dailyAirData")
+            .innerJoin (`dailyAirData.publishedBy`, "agency")
+            .select (`YEAR(dailyairdata.publishedDate)`, "year")
+            .addSelect (`MONTH(dailyairdata.publishedDate)`, "month")
+            .addSelect (`DAY(dailyairdata.publishedDate)`, "day")
+            .addSelect (`agency.NAME`, "agentName")
+            .addSelect (`agency.agentID`, "agentId")
+            .addSelect (`AVG(dailyairdata.mean)`, "dailyAvgMean")
+            .where (`YEAR(dailyairdata.publishedDate) BETWEEN ${starYear} AND ${endYear}`)
+            .andWhere (
+                new Brackets (qb => {
+                    qb.orWhere (`agency.agentID = :idOne`, {
+                        idOne: agencyOne
+                    }).orWhere (`agency.agentID = :idTwo`, {
+                        idTwo: agencyTwo
+                    })
+                })
+            )
+            .groupBy (`agency.agentID`)
+            .addGroupBy (`YEAR(dailyairdata.publishedDate)`)
+            .addGroupBy (`MONTH(dailyairdata.publishedDate)`)
+            .addGroupBy (`DAY(dailyairdata.publishedDate)`)
+            .getRawMany()
+
+                
+            // res.send(findAirData)
+            if (findAirData.length) { //if air data has found!!!
+                res.json ({
+                    message: "Air Data found!!!",
+                    status: 202,
+                    airData:  findAirData
+                })
+            }else {
+                res.json ({
+                    message: "No Air Data has been found!!!",
+                    status: 404,
+                    airData:  null
+                })
+            }
+        }else {
+            res.json ({ 
+                message: "A year range have missed!!!",
+                status: 404,
+                airData: null
+            })
+        }
+       }else {
+            res.json ({ 
+                message: "Start year is behind!!!",
+                status: 406,
+                airData: null
+            })
+       }
+    //    res.end ();
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//get all available year from existing agency 
+const getAllAvailableYearFromExistingAgency:Body =  async (req, res, next) => {
+    try {
+      const queryFor = req.params.queryFor
+      let year:any = [];
+      if (queryFor == "daily") {
+        const data = await DailyAirData.createQueryBuilder ("dailyAirData")
+        .select (`DISTINCT(YEAR(dailyAirData.publishedDate))`, "year")
+        .getRawMany();
+        year = data
+      }else if (queryFor == "final") {
+        const data = await AirData.createQueryBuilder ("airData")
+        .select (`DISTINCT(YEAR(airData.publishedDate))`, "year")
+        .getRawMany();
+        year = data
+      }
+    if (year.length) {
+        res.json ({
+            message: "Year found!",
+            status: 202,
+            years: year
+        })
+    }else {
+        res.json ({
+            message: "No Year found!",
+            status: 404,
+            years: null
+        })
+    }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            years: null
+        })
+    }
+}
+
+//get available all agency by air data available
+const getAvailableAgency:Body =  async (req, res, next) => {
+    try {
+      const queryFor = req.params.queryFor
+      let agents:any = [];
+      if (queryFor == "daily") {
+        const data = await DailyAirData.createQueryBuilder ("dailyAirData")
+        .innerJoin (`dailyAirData.publishedBy`, `publisher`)
+        .select (`publisher.name`, "name")
+        .addSelect (`publisher.agentID`, "agentId")
+        .groupBy (`publisher.name`)
+        .getRawMany();
+        agents = data
+      }else if (queryFor == "final") {
+        const data = await AirData.createQueryBuilder ("airData")
+        .innerJoin (`airData.publishedBy`, `publisher`)
+        .select (`publisher.name`, "name")
+        .addSelect (`publisher.agentID`, "agentId")
+        .groupBy (`publisher.name`)
+        .getRawMany();
+        agents = data
+      }
+    if (agents.length) {
+        res.json ({
+            message: "Agent found!",
+            status: 202,
+            agents
+        })
+    }else {
+        res.json ({
+            message: "No Agency found!",
+            status: 404,
+            agents: null
+        })
+    }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            agents: null
+        })
+    }
+}
+
+//get avg aqi of pm value of all division
+// const getAvgOfPmValueOfAllDivision:Body =  async (req, res, next) => {
+//     try {
+     
+//     }
+//     }catch(err) {
+//         console.log(err)
+//         res.json ({ 
+//             message: "Internal Error!!",
+//             status: 406,
+//             agents: null
+//         })
+//     }
+// }
+
+
 export  {
     addNewAirDataController,
     getLoggedInAgencyInputAirData,
@@ -810,7 +1053,11 @@ export  {
     deleteDailyAirDataById,
     getDailyAirDataAqiByDivision,
     getAvailableDivision,
-    getAveragePmInDailyBasisOfParticularSession
+    getAveragePmInDailyBasisOfParticularSession,
+    getAvailableSession,
+    getAvgMeanDailyBasisBetweenTwoAgencyByYear,
+    getAllAvailableYearFromExistingAgency,
+    getAvailableAgency
 }
 
 
