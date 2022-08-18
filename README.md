@@ -10,7 +10,7 @@ This is an air Quality report base web application
 
 **Database:** MySQL (with ORM TypeORM)
 
-**Language:** TypeScript (sever), JavaScript(client)
+**Language:** TypeScript (server), JavaScript(client)
 
 ## Key Roles
 
@@ -22,6 +22,7 @@ This is an air Quality report base web application
 - If user forgot password then a 4 digits OTP will sent to their contact number or email. And after verify it user can recover their forgot password.
 - Agency can update there password but to update their exist password he/she needs to put their current password and then he or she can able to update their exist password.
 - If user dont want to upload any title or cover picture during registration time then a default profile picture will be upload
+- Individual Agency can read write and delete own input daily or final air quality data.
 - Agency can input different type of air data in daily basis and final report by upload csv file or in manual way by using a form.
 - Normal user can see different type or Air Quality by many way in some graphical representation by using chart.
 
@@ -69,13 +70,13 @@ To run this project, you will need to add the following environment variables to
 
 **`PORT`** //this will be the server port
 
-**`TYPEORM_CONNECTION`** //this will be data base type example: mysql 
+**`TYPEORM_CONNECTION`** //this will be data base type example: mysql
 
 **`TYPEORM_HOST`** //this will be the hosting server Example: localhost
 
 **`TYPEORM_PORT`** //this will be the database server port Example: 3306 (default for xampp)
 
-**`TYPEORM_USERNAME`** //this will be the databse user name Example: `root` for xampp sever default 
+**`TYPEORM_USERNAME`** //this will be the databse user name Example: `root` for xampp sever default
 
 **`TYPEORM_DATABASE`** //this will be the databse name. At first user need to create a database and then insert the name here Example:airQuality (a random databse name)
 
@@ -85,7 +86,7 @@ To run this project, you will need to add the following environment variables to
 
 **`TYPEORM_ENTITIES`** //this will denote the directory of all entities Example: `./src/entites/**/*.ts`
 
-**`TYPEORM_SUBSCRIBERS`**  //this will denote the directory of all subscriber Example: `./src/subscriber/**/*.ts`
+**`TYPEORM_SUBSCRIBERS`** //this will denote the directory of all subscriber Example: `./src/subscriber/**/*.ts`
 
 **`TYPEORM_MIGRATIONS`** //this will denote the directory of all migration Example: `./src/migration/**/*.ts`
 
@@ -95,11 +96,11 @@ To run this project, you will need to add the following environment variables to
 
 **`TYPEORM_SUBSCRIBERS_DIR`** // dentoe the entities directory example; ` src/subscriber`
 
-**`JWT_CODE`**  // this will the jwt toke's secrete code 
+**`JWT_CODE`** // this will the jwt toke's secrete code
 
 **`HOST_EMAIL`** // this will be a outlook email for sent the email via node mailer example: `"nishatNiks@outlook.com"`
 
-**`HOST_PASSWORD`** //this will be password of host email which using in the node mailer  
+**`HOST_PASSWORD`** //this will be password of host email which using in the node mailer
 
 **`SENDER_EMAIL`** // this will be a outlook email where you can sent a email via node mailer example: `"nishatNiks@outlook.com"`
 
@@ -115,7 +116,7 @@ To run this project, you will need to add the following environment variables to
 
 **`SERVER_BASE_URL`** //this will be the server's base url. Example: `"http://localhost:3030"`
 
-**`CORS_ORIGIN`** //this will be the cors origin basicially the client site base url. Exapmle : `"http://localhost:3000"` Deafult base url of next js 
+**`CORS_ORIGIN`** //this will be the cors origin basicially the client site base url. Exapmle : `"http://localhost:3000"` Deafult base url of next js
 
 ## Documentation
 
@@ -127,6 +128,8 @@ To run this project, you will need to add the following environment variables to
 
 [API- Doc](https://drive.google.com/file/d/1nWZXvg0A3mWNfNHHpTrlx11XGOZ3H_wH/view?usp=sharing)
 
+[POST_MAN](https://www.postman.com/red-trinity-151066/workspace/air-quality-app)
+
 ## Support
 
-For support, sadmanishopnil@gmail.com 
+For support, sadmanishopnil@gmail.com
