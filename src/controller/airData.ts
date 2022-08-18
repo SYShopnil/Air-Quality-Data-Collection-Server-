@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express"
+import e, { NextFunction, Request, Response } from "express"
 import { AgencyRegistration } from "../dto/agency/registration.dto"
 import { Agency } from "../entites/Agency"
 import { AirData } from "../entites/AirData"
@@ -34,6 +34,7 @@ import {
 } from "../dto/airData/addDailyAirDataValidator.dto"
 import readCsvDataHandler from "../../utils/readCsvData"
 import { Brackets, SelectQueryBuilder } from "typeorm"
+import { divisionMapQuery } from "../../utils/divisionMapQuery"
 
 //local type
 type Body = (req: Request, res: Response, next: NextFunction) => Promise<void> //body type
@@ -777,6 +778,7 @@ const getAveragePmInDailyBasisOfParticularSession:Body =  async (req, res, next)
        })
        .groupBy (`YEAR(airdata.publishedDate)`)
        .addGroupBy (`MONTH(airdata.publishedDate)`)
+       .addGroupBy(`airData.publishedBy`)
     //    .addGroupBy (`airdata.publishedBy`)
        .getRawMany(); //get query data
        if (findAvailableAirData.length) { //if data found
@@ -792,6 +794,7 @@ const getAveragePmInDailyBasisOfParticularSession:Body =  async (req, res, next)
         })
         // console.log(first)
         // console.log(finalStructure)
+        // console.log(findAvailableAirData)
         const final:any = [];
         finalStructure.map ((subArray:any) => {
             const childStruct:any = {
@@ -809,16 +812,18 @@ const getAveragePmInDailyBasisOfParticularSession:Body =  async (req, res, next)
                     }
                 }
             })
-            final.push (childStruct)
+            if (childStruct.x.length || childStruct.y.length ) {
+                final.push (childStruct)
+            }
         })
         res.json ({
-            message: "Data found!!",
+            message: "Air data found!!",
             status: 202,
             airData: finalStructure
         })
        }else {
         res.json ({
-            message: "Data not found",
+            message: "Air data not found",
             status: 404,
             airData: null
         })
@@ -1027,19 +1032,451 @@ const getAvailableAgency:Body =  async (req, res, next) => {
 }
 
 //get avg aqi of pm value of all division
-// const getAvgOfPmValueOfAllDivision:Body =  async (req, res, next) => {
-//     try {
-     
-//     }
-//     }catch(err) {
-//         console.log(err)
-//         res.json ({ 
-//             message: "Internal Error!!",
-//             status: 406,
-//             agents: null
-//         })
-//     }
-// }
+const getAvgOfPmValueOfAllDivision:Body =  async (req, res, next) => {
+    try {
+        const getAirData:any = await AirData.createQueryBuilder ("airData")
+        .select(`AVG(airdata.valueOfPM)`, "avgPm")
+        .addSelect(`airdata.division`, 'division')
+        .groupBy(`airdata.division`)
+        .getRawMany();
+        // console.log(getAirData)
+        if (getAirData.length) { //if data successfully found
+            // console.log(getAirData)
+            const format = divisionMapQuery(getAirData)
+            if (format.length ) { //if air data has found
+                res.json ({
+                    message: "Air data found",
+                    status: 202,
+                    airData: format
+                })
+            }else {
+                res.json ({
+                    message: "No air data found",
+                    status: 404,
+                    airData: null
+                })
+            }
+        }else {
+            res.json ({
+                message: "No air data found",
+                status: 404,
+                airData: null
+            })
+        }
+        // res.end()
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+
+
+//get avg aqi of pm value of all division by yearly or monthly 
+const getAvgAqiByYearlyOrMonthly:Body =  async (req, res, next) => {
+    try {
+        const {
+            queryBy
+        } = req.body
+        const airData =  AirData.createQueryBuilder("airdata")
+        if (queryBy == "yearly") {
+            airData.select (`AVG(airdata.valueOfPM)`, "avgAQI")
+            .addSelect (`YEAR(airdata.publishedDate)`, 'year')
+            .addSelect (`airdata.division`, `division`)
+            .where (`YEAR(airdata.publishedDate) BETWEEN ${req.body.yearFrom} AND ${req.body.yearTo}`)
+            .groupBy (`airdata.division`)
+            .addGroupBy (`YEAR(airdata.publishedDate)`)
+        }else if (queryBy == 'monthly'){
+             airData.select (`AVG(airdata.valueOfPM)`, "avgAQI")
+            .addSelect (`YEAR(airdata.publishedDate)`, 'year')
+            .addSelect (`airdata.division`, `division`)
+            .addSelect (`MONTH(airdata.publishedDate)`, 'month')
+            .where (`YEAR(airdata.publishedDate) = :year`, {
+                year: req.body.year
+            })
+            .groupBy (`airdata.division`)
+            .addGroupBy (`YEAR(airdata.publishedDate)`)
+            .addGroupBy (`MONTH(airdata.publishedDate)`)
+        }
+        const data = await airData.getRawMany()
+        if (data.length) { //if air data has found
+            let divisions:any = [];
+            let graphData:any = []
+            data.forEach (allData => {
+                divisions.push (allData.division)
+                divisions = [...new Set(divisions)]
+            })
+            divisions.forEach((division:string) => {
+                const myData:any = [];
+                data.forEach ((d:any) => {
+                    // console.log(d)
+                    if (d.division == division) {
+                        myData.push(d)
+                    }
+                })
+                graphData.push (myData)
+            })
+            // console.log(graphData)
+            res.json ({
+                message: "Air data has found!!!",
+                airData: graphData,
+                status: 202,
+            })
+        }else {
+            res.json ({
+                message: "No air data has found!!!",
+                airData: null,
+                status: 404,
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//get avg aqi of pm value of all division
+const getAvgAqiByOfAllDivision:Body =  async (req, res, next) => {
+    try {
+        const airData =  await AirData.createQueryBuilder("airdata")
+        .select (`AVG(airdata.valueOfPM)`, 'avgPM')
+        .addSelect (`airdata.division`, "division")
+        .groupBy (`airdata.division`)
+        .getRawMany ()
+
+        if (airData.length) { //if air data has found
+            res.json ({
+                message: "Air data has found!!!",
+                airData: airData,
+                status: 202,
+            })
+        }else {
+            res.json ({
+                message: "No air data has found!!!",
+                airData: null,
+                status: 404,
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//get all agency station number by agency id 
+const getAllStationNumberByAgencyId:Body =  async (req, res, next) => {
+    try {
+        const stationData =  await AirData.createQueryBuilder("airdata")
+        .select (`airdata.stationNo`, 'station')
+        .where (`airdata.publishedBy = :agentId`, {
+            agentId: req.params.id
+        })
+        .groupBy (`airdata.stationNo`)
+        .addGroupBy (`airdata.publishedBy`)
+        .orderBy (`airdata.stationNo`, "ASC")
+        .getRawMany ()
+        if (stationData.length) { //if data has been found
+            res.json ({
+                message: "Station has found!!",
+                stationData,
+                status: 202
+            })
+        }else {
+            res.json ({
+                message: "No station has been found!!",
+                stationData: null,
+                status: 404
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            stationData: null
+        })
+    }
+}
+
+
+
+//get air data of an agency particular station number
+const getAvgAqiOfStationNumber:Body =  async (req, res, next) => {
+    try {
+        const findAirData:AirData[] | [] = await AirData.createQueryBuilder ("airData")
+        .innerJoin(`airData.publishedBy`, "publisher")
+        .select(`airdata.valueOfPM`, `valueOfPm`)
+        .addSelect(`airdata.stationNo`, 'station')
+        .addSelect(`publisher.name`, 'agencyName')
+        .where(`airdata.publishedBy = :publishedBy`, {
+            publishedBy: req.body.agentId
+        })
+        .orderBy(`airdata.stationNo`, "ASC")
+        .getRawMany();
+        if (findAirData.length) { //if air data successfully found
+            // console.log(findAirData)
+            const getAllStationNo = await AirData.createQueryBuilder(`airdata`)
+            .select(`DISTINCT(airData.stationNo)`)
+            .andWhere(`airdata.publishedBy = :publishedBy`, {
+                publishedBy: req.body.agentId
+            })
+            .orderBy(`airdata.stationNo`, "ASC")
+            .getRawMany();
+            
+            const structure:any = [];
+            getAllStationNo.forEach (station => {
+                const innerStruct:any = {
+                    valueOfPm: []
+                };
+                findAirData.forEach ((airData:any) => {
+                    if (airData.station == station.stationNo  ) {
+                        innerStruct["agencyName"] = airData.agencyName
+                        innerStruct["station"] = airData.station
+                        innerStruct.valueOfPm.push (airData.valueOfPm)
+                    }
+                })
+                structure.push(innerStruct)
+            })
+            res.json ({
+                message: "Air data  found!!!",
+                status: 202,
+                airdata:structure
+            })
+        }else {
+            res.json ({
+                message: "Air data not found!!!",
+                status: 404,
+                airdata:null
+            })
+        }
+        // console.log(findAirData)
+        // res.send(findAirData)
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airdata: null
+        })
+    }
+}
+
+//get avg aqi of pm value of all a particular agency's all stations
+const getAqiOfStationNumberByMonth:Body =  async (req, res, next) => {
+    try {
+        const airData =  await AirData.createQueryBuilder("airData")
+        .innerJoin(`airData.publishedBy`, "agency")
+        .select (`airData.valueOfPM`, 'valueOfPM')
+        .addSelect (`airData.stationNo`, "station")
+        .addSelect (`agency.name`, "agencyName")
+        .addSelect (`MONTH(airData.publishedDate)`, "month")
+        .addSelect (`YEAR(airData.publishedDate)`, "year")
+        .where (`airData.publishedBy = :agentId`, {
+            agentId: req.body.agentId
+        })
+        .andWhere (`airData.stationNo = :stationNo`, {
+            stationNo: req.body.stationNo
+        })
+        .andWhere (`YEAR(airData.publishedDate) = :publishYear`, {
+            publishYear: req.body.yearOf
+        })
+        .orderBy (`airData.stationNo`, "ASC")
+        .getRawMany ()
+        if (airData.length) { //if data has been found
+             const getAllMonth = await AirData.createQueryBuilder(`airdata`)
+            .select(`DISTINCT(MONTH(airData.publishedDate))`, "month")
+            .where (`airData.publishedBy = :agentId`, {
+                agentId: req.body.agentId
+            })
+            .andWhere (`airData.stationNo = :stationNo`, {
+                stationNo: req.body.stationNo
+            })
+            .andWhere (`YEAR(airData.publishedDate) = :publishYear`, {
+                publishYear: req.body.yearOf
+            })
+            .orderBy(`MONTH(airData.publishedDate)`, "ASC")
+            .getRawMany();
+            
+            const structure:any = [];
+            // console.log(getAllMonth)
+            // console.log(airData)
+            getAllMonth.forEach (month => {
+                const innerStruct:any = {
+                    valueOfPm: []
+                };
+                airData.forEach ((airValue:any) => {
+                    if (airValue.month == month.month  ) {
+                        innerStruct["agencyName"] = airValue.agencyName
+                        innerStruct["month"] = airValue.month
+                        innerStruct["year"] = airValue.year
+                        innerStruct.valueOfPm.push (airValue.valueOfPM)
+                    }
+                })
+                structure.push(innerStruct)
+            })
+            res.json ({
+                message: "Air data has been found!!",
+                airData: structure,
+                status: 202
+            })
+        }else {
+            res.json ({
+                message: "No air data has been found!!",
+                airData: null,
+                status: 404
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+//get aqi data by session with filtering
+const getAqiDataBySession:Body =  async (req, res, next) => {
+    try {
+        const {
+            sessionBy = "all",
+            queryByTime = "yearly"
+        } = req.body 
+        const query = await AirData.createQueryBuilder ("airdata")
+        .select(`AVG(airdata.valueOfPM)`, `avgPm`)
+        .addSelect (`MAX(airdata.valueOfPM)`, 'maxPm')
+        .addSelect (`MIN(airdata.valueOfPM)`, 'minPm')
+        .addSelect (`airdata.season`, 'session')
+        
+        if(sessionBy !== "all") {
+            query.andWhere(`airdata.season = :session`, {
+                session: sessionBy
+            })
+        }
+        if (queryByTime == "monthly") {
+            query.addSelect(`MONTH(airdata.publishedDate)`, "month")
+            .orderBy (`MONTH(airdata.publishedDate)`, "ASC")
+            .groupBy(`MONTH(airdata.publishedDate)`)
+            .addGroupBy(`airdata.season`)
+        }else if (queryByTime == "yearly") {
+            query.addSelect(`YEAR(airdata.publishedDate)`, "year")
+            .orderBy (`YEAR(airdata.publishedDate)`, "ASC")
+            .groupBy(`YEAR(airdata.publishedDate)`)
+            .addGroupBy(`airdata.season`)
+        }
+
+        const airData = await query.getRawMany();
+        // console.log(airData)
+        // res.send(airData)
+        if (airData.length) { //if air data found
+            const struct:any = []
+            // console.log(airData)
+            if (sessionBy != "all") {
+                const data:any = {
+                    valueOfPm: []
+                };
+                airData.forEach((airData:any) => {
+                    data["session"] = airData.session
+                    data.valueOfPm.push(airData.avgPm, airData.maxPm, airData.minPm)
+                })
+                struct.push(data)
+            } else { //if query will be session by all 
+                const getAllAvailableMonth = await AirData.createQueryBuilder ("airdata")
+                .select (`DISTINCT(airdata.season)`, "sessions").getRawMany()
+                getAllAvailableMonth.forEach ((sessions:any) => {
+                    const data:any = {
+                        valueOfPm: []
+                    }
+                    airData.forEach ((airData:any) => {
+                        if (airData.session == sessions.sessions) {
+                            // console.log({airData, sessions})
+                            data["session"] = airData.session
+                            data.valueOfPm.push(airData.avgPm, airData.maxPm, airData.minPm)
+                        }
+                    })
+                    struct.push (data)
+                })
+                // console.log(struct)
+                // res.end()
+            }
+            // console.log(struct)
+            // res.end()
+            if (struct.length) {
+                res.json ({
+                    message: "Air data has found!!",
+                    status: 202,
+                    airData: struct
+                })
+            }else {
+                res.json ({
+                    message: "No air data has found!!",
+                    status: 404,
+                    airData: null
+                })
+            }
+        }else {
+            res.json ({
+                message: "Nor Air Data has found",
+                status: 404,
+                airData: null
+            })
+        }
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
+
+
+//get avg aqi of pm value of all a particular agency's all stations
+const getAvgAqiByYear:Body =  async (req, res, next) => {
+    try {
+        const airData = await AirData.createQueryBuilder("airdata")
+        .select(`AVG(airdata.valueOfPM)`, `avgPmValue`)
+        .addSelect(`YEAR(airdata.publishedDate)`, `year`)
+        .where(`YEAR(airdata.publishedDate) BETWEEN ${req.body.startYear} AND ${req.body.endYear}`)
+        .groupBy (`YEAR(airdata.publishedDate)`)
+        .getRawMany();
+        if (airData.length) { //if successfully air data has been found
+            res.json ({
+                message: "Air data found!!",
+                status: 202,
+                airData
+            })
+        }else {
+            res.json ({
+                message: "No air data found!!",
+                status: 404,
+                airData: null
+            })
+        }
+        // res.end()
+    }catch(err) {
+        console.log(err)
+        res.json ({ 
+            message: "Internal Error!!",
+            status: 406,
+            airData: null
+        })
+    }
+}
 
 
 export  {
@@ -1057,7 +1494,13 @@ export  {
     getAvailableSession,
     getAvgMeanDailyBasisBetweenTwoAgencyByYear,
     getAllAvailableYearFromExistingAgency,
-    getAvailableAgency
+    getAvailableAgency,
+    getAvgAqiByYearlyOrMonthly,
+    getAvgAqiByOfAllDivision,
+    getAqiOfStationNumberByMonth,
+    getAllStationNumberByAgencyId,
+    getAvgAqiOfStationNumber,
+    getAqiDataBySession,
+    getAvgAqiByYear,
+    getAvgOfPmValueOfAllDivision
 }
-
-
