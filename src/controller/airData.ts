@@ -151,11 +151,16 @@ const getLoggedInAgencyInputAirData:Body =  async (req, res, next) => {
         }
         
         const {
-            sortBy,
+            sortBy ,
             searchBy,
             pageNo,
             dataLimit
         }:bodyInput = req.body; 
+        // console.log(req.user.agentID)
+        // console.log({sortBy ,
+        //     searchBy,
+        //     pageNo,
+        //     dataLimit})
         const limit:number = dataLimit || 5 //set the data limit
         const currentPageNo:string | number = pageNo || 1
         const query = await AirData.createQueryBuilder ("airData")
@@ -226,14 +231,15 @@ const getLoggedInAgencyInputAirData:Body =  async (req, res, next) => {
             }
         ) //get only those whose are not deleted
          //pagination part start
+         
         const totalDataFound:number = await query.getCount(); //get the total found data 
         const pageNeed = (Math.floor(totalDataFound / limit)) + 1 //total page need for this query 
         const skipData = (+currentPageNo * limit) - limit //this amount of data will be skip 
         query.limit(limit).offset(skipData) //for pagination 
-        
+        // console.log(query)
         //finally get all data with all query
         const getAllData = await query.getMany(); //finally get all data
-        
+    //    console.log(totalDataFound)
         if (getAllData.length) { //if query data has found 
             res.json ({
                 message: `${getAllData.length} data has found`,
@@ -264,6 +270,7 @@ const getLoggedInAgencyInputAirData:Body =  async (req, res, next) => {
 const updateAirDataById:Body =  async (req, res, next) => {
     try {
         const reqAirDataId:string = req.params.id  
+        // console.log(reqAirDataId)
         const updateAirData = await AirData.createQueryBuilder("airData")
         .leftJoin (
             `airData.publishedBy`,
